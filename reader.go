@@ -9,10 +9,10 @@ import (
 type ReaderStatos struct {
 	done     bool
 	finished uint64
-	iterator io.ReadCloser
+	iterator io.Reader
 }
 
-func NewReader(rd io.ReadCloser) *ReaderStatos {
+func NewReader(rd io.Reader) *ReaderStatos {
 	return &ReaderStatos{
 		finished: 0,
 		iterator: rd,
@@ -31,12 +31,4 @@ func (r *ReaderStatos) Read(p []byte) (n int, err error) {
 
 func (r *ReaderStatos) Progress() (uint64, bool) {
 	return r.finished, r.done
-}
-
-func (r *ReaderStatos) Close() error {
-	err := r.iterator.Close()
-	if err == nil {
-		r.done = true
-	}
-	return err
 }

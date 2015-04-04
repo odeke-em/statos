@@ -14,7 +14,7 @@ func currentFile() string {
 	return filename
 }
 
-func consumer(rs *ReaderStatos) chan bool {
+func consumer(rs *ReadCloserStatos) chan bool {
 	done := make(chan bool)
 
 	go func() {
@@ -34,7 +34,7 @@ func consumer(rs *ReaderStatos) chan bool {
 	return done
 }
 
-func progresser(rs *ReaderStatos, end chan bool) chan bool {
+func progresser(rs *ReadCloserStatos, end chan bool) chan bool {
 	done := make(chan bool)
 
 	go func() {
@@ -67,7 +67,7 @@ func TestReader(t *testing.T) {
 		fmt.Printf("%s: %v\n", curFile, err)
 		return
 	}
-	rs := NewReader(r)
+	rs := NewReadCloser(r)
 
 	consumerChan := consumer(rs)
 	done := progresser(rs, consumerChan)
