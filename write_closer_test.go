@@ -41,7 +41,7 @@ func wProgresser(ws *WriteCloserStatos, end chan bool) chan bool {
 	go func() {
 		for {
 
-			n, atEnd := ws.Progress()
+			n, _, _, atEnd := ws.Progress()
 			if atEnd {
 				break
 			}

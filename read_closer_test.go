@@ -18,7 +18,7 @@ func consumer(rs *ReadCloserStatos) chan bool {
 	done := make(chan bool)
 
 	go func() {
-		ticker := time.Tick(1e9)
+		ticker := time.Tick(1e8)
 		for {
 			bk := make([]byte, 64)
 			// Throttle
@@ -40,12 +40,12 @@ func progresser(rs *ReadCloserStatos, end chan bool) chan bool {
 	go func() {
 		for {
 
-			n, atEnd := rs.Progress()
+			n, fresh, atEnd := rs.Progress()
 			if atEnd {
 				break
 			}
 
-			fmt.Printf("%v\r", n)
+			fmt.Printf("%v %v\r", fresh, n)
 
 			select {
 			case <-end:

@@ -7,20 +7,30 @@ import (
 
 // ReadCloserStatos implements the Read() interface
 type ReadCloserStatos struct {
-	done     bool
-	finished uint64
-	iterator io.ReadCloser
+	done bool
+	// Monotomically increasing number to track the number of reads
+	curReadV uint64
+	// Track the previous
+	prevReadV uint64
+	finished  uint64
+	iterator  io.ReadCloser
 }
 
 func NewReadCloser(rd io.ReadCloser) *ReadCloserStatos {
 	return &ReadCloserStatos{
-		finished: 0,
-		iterator: rd,
+		curReadV:  0,
+		prevReadV: 0,
+		finished:  0,
+		iterator:  rd,
 	}
 }
 
 func (r *ReadCloserStatos) Read(p []byte) (n int, err error) {
 	n, err = r.iterator.Read(p)
+
+	r.prevReadV = r.curReadV
+	r.curReadV += 1
+
 	if err != nil && err != syscall.EINTR {
 		r.done = true
 	} else if n >= 0 {
@@ -29,8 +39,8 @@ func (r *ReadCloserStatos) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (r *ReadCloserStatos) Progress() (uint64, bool) {
-	return r.finished, r.done
+func (r *ReadCloserStatos) Progress() (finished uint64, fresh, done bool) {
+	return r.finished, r.curReadV > r.prevReadV, r.done
 }
 
 func (r *ReadCloserStatos) Close() error {
