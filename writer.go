@@ -33,11 +33,3 @@ func (w *WriterStatos) Write(p []byte) (n int, err error) {
 func (w *WriterStatos) Progress() (uint64, bool) {
 	return w.finished, w.done
 }
-
-func (w *WriterStatos) Close() error {
-	err := w.iterator.Close()
-	if err == nil {
-		w.done = true
-	}
-	return err
-}
