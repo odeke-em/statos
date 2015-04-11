@@ -1,6 +1,7 @@
 package statos
 
 import (
+	"fmt"
 	"io"
 	"syscall"
 )
@@ -29,11 +30,12 @@ func (r *ReadCloserStatos) Read(p []byte) (n int, err error) {
 	n, err = r.iterator.Read(p)
 
 	r.prevReadV = r.curReadV
-	r.curReadV += 1
 
+	fmt.Println(n, err)
 	if err != nil && err != syscall.EINTR {
 		r.done = true
 	} else if n >= 0 {
+		r.curReadV += 1
 		r.finished += uint64(n)
 	}
 	return
