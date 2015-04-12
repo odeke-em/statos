@@ -39,21 +39,9 @@ func wProgresser(ws *WriteCloserStatos, end chan bool) chan bool {
 	done := make(chan bool)
 
 	go func() {
-		for {
-
-			n, _, _, atEnd := ws.Progress()
-			if atEnd {
-				break
-			}
-
+		commChan := ws.ProgressChan()
+		for n := range commChan {
 			fmt.Printf("%v\r", n)
-
-			select {
-			case <-end:
-				break
-			default:
-				continue
-			}
 		}
 		done <- true
 	}()
@@ -78,8 +66,6 @@ func TestWriteCloser(t *testing.T) {
 		t.Errorf("%s: %v\n", destName, err)
 		return
 	}
-
-	fmt.Println(destAbsPath)
 
 	defer func() {
 		if rmErr := os.RemoveAll(destAbsPath); rmErr != nil {

@@ -38,21 +38,9 @@ func progresser(rs *ReadCloserStatos, end chan bool) chan bool {
 	done := make(chan bool)
 
 	go func() {
-		for {
-
-			n, fresh, atEnd := rs.Progress()
-			if atEnd {
-				break
-			}
-
-			fmt.Printf("%v %v\r", fresh, n)
-
-			select {
-			case <-end:
-				break
-			default:
-				continue
-			}
+		commChan := rs.ProgressChan()
+		for n := range commChan {
+			fmt.Printf("%v\r", n)
 		}
 		done <- true
 	}()
