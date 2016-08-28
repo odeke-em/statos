@@ -5,7 +5,9 @@ import (
 	"syscall"
 )
 
-// ReaderStatos implements the Read() interface
+// ReaderStatos implements io.Reader
+var _ io.Reader = &ReaderStatos{}
+
 type ReaderStatos struct {
 	iterator   io.Reader
 	commChan   chan int

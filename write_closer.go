@@ -5,7 +5,9 @@ import (
 	"syscall"
 )
 
-// WriteCloserStatos implements the Write() interface
+// WriteCloserStatos implements io.WriteCloser
+var _ io.WriteCloser = &WriteCloserStatos{}
+
 type WriteCloserStatos struct {
 	commChan   chan int
 	commClosed bool

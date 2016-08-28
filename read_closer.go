@@ -5,7 +5,9 @@ import (
 	"syscall"
 )
 
-// ReadCloserStatos implements the Read() interface
+// ReadCloserStatos implements io.ReadCloser
+var _ io.ReadCloser = &ReadCloserStatos{}
+
 type ReadCloserStatos struct {
 	commChan   chan int
 	commClosed bool

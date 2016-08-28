@@ -5,7 +5,9 @@ import (
 	"syscall"
 )
 
-// WriterStatos implements the Write() interface
+// WriterStatos implements io.Writer
+var _ io.Writer = &WriterStatos{}
+
 type WriterStatos struct {
 	iterator   io.WriteCloser
 	commChan   chan int
