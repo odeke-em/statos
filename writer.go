@@ -2,6 +2,7 @@ package statos
 
 import (
 	"io"
+	"sync"
 	"syscall"
 )
 
@@ -9,12 +10,30 @@ import (
 var _ io.Writer = &WriterStatos{}
 
 type WriterStatos struct {
-	iterator   io.WriteCloser
+	sync.RWMutex
+	iterator   io.Writer
 	commChan   chan int
 	commClosed bool
+
+	commOnce sync.Once
 }
 
-func NewWriter(w io.WriteCloser) *WriterStatos {
+func (w *WriterStatos) closeCommChan() bool {
+	alreadyClosed := w.wasCommClosed()
+	if !alreadyClosed {
+		w.commOnce.Do(func() {
+			w.Lock()
+			defer w.Unlock()
+
+			close(w.commChan)
+			w.commClosed = true
+			alreadyClosed = w.commClosed
+		})
+	}
+	return w.commClosed
+}
+
+func NewWriter(w io.Writer) *WriterStatos {
 	return &WriterStatos{
 		commChan:   make(chan int),
 		iterator:   w,
@@ -26,14 +45,21 @@ func (w *WriterStatos) Write(p []byte) (n int, err error) {
 	n, err = w.iterator.Write(p)
 
 	if err != nil && err != syscall.EINTR {
-		if !w.commClosed {
-			close(w.commChan)
-			w.commClosed = true
-		}
-	} else if n >= 0 {
+		w.closeCommChan()
+		return
+	}
+
+	if n >= 0 && !w.wasCommClosed() {
 		w.commChan <- n
 	}
 	return
+}
+
+func (ws *WriterStatos) wasCommClosed() bool {
+	ws.RLock()
+	defer ws.RUnlock()
+
+	return ws.commClosed
 }
 
 func (w *WriterStatos) ProgressChan() chan int {

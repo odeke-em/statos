@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func producer(ws *WriteCloserStatos) chan bool {
+func producer(t *testing.T, ws *WriteCloserStatos) chan bool {
 	done := make(chan bool)
 
 	go func() {
@@ -28,7 +28,11 @@ func producer(ws *WriteCloserStatos) chan bool {
 			}
 		}
 
-		ws.Close()
+		for i := 0; i < 10; i++ {
+			if err := ws.Close(); err != nil {
+				t.Errorf("#%d close err=%v", i, err)
+			}
+		}
 		done <- true
 	}()
 
@@ -75,7 +79,7 @@ func TestWriteCloser(t *testing.T) {
 
 	ws := NewWriteCloser(destFile)
 
-	producerChan := producer(ws)
+	producerChan := producer(t, ws)
 	done := wProgresser(ws, producerChan)
 
 	<-done

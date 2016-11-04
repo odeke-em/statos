@@ -2,6 +2,7 @@ package statos
 
 import (
 	"io"
+	"sync"
 	"syscall"
 )
 
@@ -9,29 +10,54 @@ import (
 var _ io.Reader = &ReaderStatos{}
 
 type ReaderStatos struct {
+	sync.RWMutex
 	iterator   io.Reader
 	commChan   chan int
 	commClosed bool
+
+	commOnce sync.Once
 }
 
-func NewReader(rd io.Reader) *ReaderStatos {
+func (rs *ReaderStatos) closeCommChan() bool {
+	alreadyClosed := rs.wasCommClosed()
+	if !alreadyClosed {
+		rs.commOnce.Do(func() {
+			rs.Lock()
+			defer rs.Unlock()
+
+			close(rs.commChan)
+			rs.commClosed = true
+			alreadyClosed = rs.commClosed
+		})
+	}
+	return alreadyClosed
+}
+
+func NewReader(r io.Reader) *ReaderStatos {
 	return &ReaderStatos{
-		iterator:   rd,
+		iterator:   r,
 		commChan:   make(chan int),
 		commClosed: false,
 	}
 }
 
-func (r *ReaderStatos) Read(p []byte) (n int, err error) {
-	n, err = r.iterator.Read(p)
+func (rs *ReaderStatos) wasCommClosed() bool {
+	rs.RLock()
+	defer rs.RUnlock()
+
+	return rs.commClosed
+}
+
+func (rs *ReaderStatos) Read(p []byte) (n int, err error) {
+	n, err = rs.iterator.Read(p)
 
 	if err != nil && err != syscall.EINTR {
-		if !r.commClosed {
-			close(r.commChan)
-			r.commClosed = true
-		}
-	} else if n >= 0 {
-		r.commChan <- n
+		rs.closeCommChan()
+		return
+	}
+
+	if n >= 0 && !rs.wasCommClosed() {
+		rs.commChan <- n
 	}
 	return
 }

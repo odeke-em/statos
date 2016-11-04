@@ -62,5 +62,9 @@ func TestReader(t *testing.T) {
 
 	<-done
 
-	defer rs.Close()
+	for i := 0; i < 10; i++ {
+		if err := rs.Close(); err != nil {
+			t.Errorf("#%d close err=%v", i, err)
+		}
+	}
 }

@@ -2,49 +2,29 @@ package statos
 
 import (
 	"io"
-	"syscall"
+	"sync"
 )
 
 // ReadCloserStatos implements io.ReadCloser
 var _ io.ReadCloser = &ReadCloserStatos{}
 
 type ReadCloserStatos struct {
-	commChan   chan int
-	commClosed bool
-	iterator   io.ReadCloser
+	*ReaderStatos
+
+	c io.Closer
+
+	closerOnce sync.Once
 }
 
-func NewReadCloser(rd io.ReadCloser) *ReadCloserStatos {
-	return &ReadCloserStatos{
-		commChan:   make(chan int),
-		commClosed: false,
-		iterator:   rd,
-	}
+func NewReadCloser(rc io.ReadCloser) *ReadCloserStatos {
+	return &ReadCloserStatos{NewReader(rc), rc, sync.Once{}}
 }
 
-func (r *ReadCloserStatos) Read(p []byte) (n int, err error) {
-	n, err = r.iterator.Read(p)
-
-	if err != nil && err != syscall.EINTR {
-		if !r.commClosed {
-			close(r.commChan)
-			r.commClosed = true
-		}
-	} else if n >= 0 {
-		r.commChan <- n
-	}
-	return
-}
-
-func (r *ReadCloserStatos) ProgressChan() chan int {
-	return r.commChan
-}
-
-func (r *ReadCloserStatos) Close() error {
-	err := r.iterator.Close()
-	if err == nil && !r.commClosed {
-		close(r.commChan)
-		r.commClosed = true
-	}
+func (rcs *ReadCloserStatos) Close() error {
+	var err error
+	rcs.closerOnce.Do(func() {
+		err = rcs.c.Close()
+		rcs.closeCommChan()
+	})
 	return err
 }

@@ -2,51 +2,29 @@ package statos
 
 import (
 	"io"
-	"syscall"
+	"sync"
 )
 
 // WriteCloserStatos implements io.WriteCloser
 var _ io.WriteCloser = &WriteCloserStatos{}
 
 type WriteCloserStatos struct {
-	commChan   chan int
-	commClosed bool
-	iterator   io.WriteCloser
+	*WriterStatos
+
+	c io.Closer
+
+	closerOnce sync.Once
 }
 
-func NewWriteCloser(w io.WriteCloser) *WriteCloserStatos {
-	return &WriteCloserStatos{
-		commChan:   make(chan int),
-		iterator:   w,
-		commClosed: false,
-	}
+func NewWriteCloser(wc io.WriteCloser) *WriteCloserStatos {
+	return &WriteCloserStatos{NewWriter(wc), wc, sync.Once{}}
 }
 
-func (w *WriteCloserStatos) Write(p []byte) (n int, err error) {
-	n, err = w.iterator.Write(p)
-
-	if err != nil && err != syscall.EINTR {
-		if !w.commClosed {
-			close(w.commChan)
-			w.commClosed = true
-		}
-	} else if n >= 0 {
-		w.commChan <- n
-	}
-	return
-}
-
-func (w *WriteCloserStatos) ProgressChan() chan int {
-	return w.commChan
-}
-
-func (w *WriteCloserStatos) Close() error {
-	err := w.iterator.Close()
-	if err == nil {
-		if !w.commClosed {
-			close(w.commChan)
-			w.commClosed = true
-		}
-	}
+func (wcs *WriteCloserStatos) Close() error {
+	var err error
+	wcs.closerOnce.Do(func() {
+		err = wcs.c.Close()
+		wcs.closeCommChan()
+	})
 	return err
 }
